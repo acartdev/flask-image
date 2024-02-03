@@ -1,0 +1,8 @@
+Flask
+werkzeug
+mysql-connector-python
+flask-cors
+pyzbar
+opencv-python
+pillow
+pytesseract
