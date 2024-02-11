@@ -1,4 +1,5 @@
 
+import os
 import cv2
 
 from flask import Flask,request,jsonify,make_response
@@ -33,7 +34,7 @@ def allzone():
 def zonea():
     conn = mysql.connector.connect(host=host,user=user,password="",db=db)
     mycursor = conn.cursor(dictionary=True)
-    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='a'")
+    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='a' ORDER BY no ASC")
     myresult = mycursor.fetchall()
     return make_response(jsonify(myresult),200)
 
@@ -41,7 +42,7 @@ def zonea():
 def zoneb():
     conn = mysql.connector.connect(host=host,user=user,password="",db=db)
     mycursor = conn.cursor(dictionary=True)
-    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='b'")
+    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='b' ORDER BY no ASC")
     myresult = mycursor.fetchall()
     return make_response(jsonify(myresult),200)
 
@@ -49,7 +50,7 @@ def zoneb():
 def zonec():
     conn = mysql.connector.connect(host=host,user=user,password="",db=db)
     mycursor = conn.cursor(dictionary=True)
-    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='c'")
+    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='c' ORDER BY no ASC")
     myresult = mycursor.fetchall()
     return make_response(jsonify(myresult),200)
 
@@ -57,7 +58,7 @@ def zonec():
 def zoned():
     conn = mysql.connector.connect(host=host,user=user,password="",db=db)
     mycursor = conn.cursor(dictionary=True)
-    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='d'")
+    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='d' ORDER BY no ASC")
     myresult = mycursor.fetchall()
     return make_response(jsonify(myresult),200)
 
@@ -65,7 +66,7 @@ def zoned():
 def zonef():
     conn = mysql.connector.connect(host=host,user=user,password="",db=db)
     mycursor = conn.cursor(dictionary=True)
-    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='f'")
+    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='f' ORDER BY no ASC")
     myresult = mycursor.fetchall()
     return make_response(jsonify(myresult),200)
 
@@ -73,9 +74,35 @@ def zonef():
 def zoneg():
     conn = mysql.connector.connect(host=host,user=user,password="",db=db)
     mycursor = conn.cursor(dictionary=True)
-    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='g'")
+    mycursor.execute("SELECT * FROM tablestatus WHERE zone ='g' ORDER BY no ASC")
     myresult = mycursor.fetchall()
     return make_response(jsonify(myresult),200)
+
+def check_similarity(file, prototype_folder='uploads', prototype_filenames=['prototype1.jpg', 'prototype2.jpg']):
+    if file:
+        file_path = os.path.join(prototype_folder, file.filename)
+        file.save(file_path)
+
+        width, height = 500, 500
+
+        orb = cv2.ORB_create()
+        kp_file, des_file = orb.detectAndCompute(cv2.resize(cv2.imread(file_path), (width, height)), None)
+
+        similarity_scores = []
+
+        for prototype_filename in prototype_filenames:
+            prototype_path = os.path.join(prototype_folder, prototype_filename)
+            if os.path.exists(prototype_path):
+                image_prototype = cv2.resize(cv2.imread(prototype_path), (width, height))
+                kp_prototype, des_prototype = orb.detectAndCompute(image_prototype, None)
+
+                bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+                matches = bf.match(des_file, des_prototype)
+
+                similarity_score = len(matches) / len(kp_file)
+                similarity_scores.append(similarity_score)
+
+        return any(score > 0.5 for score in similarity_scores)
 
 
 @app.route('/upload', methods=['POST'])
@@ -90,20 +117,20 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No selected file'})
     if file:
-        file.save('uploads/' + file.filename)
-        image1 = cv2.imread('uploads/prototype.jpg')
-        image2 = cv2.imread(f'uploads/{file.filename}')
-        width, height = 500, 500
-        image1 = cv2.resize(image1, (width, height))
-        image2 = cv2.resize(image2, (width, height))
-        orb = cv2.ORB_create()
-        kp1, des1 = orb.detectAndCompute(image1, None)
-        kp2, des2 = orb.detectAndCompute(image2, None)
-        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-        matches = bf.match(des1, des2)
-        similarity_score = len(matches) / len(kp1)
+        # file.save('uploads/' + file.filename)
+        # image1 = cv2.imread('uploads/prototype.jpg')
+        # image2 = cv2.imread(f'uploads/{file.filename}')
+        # width, height = 500, 500
+        # image1 = cv2.resize(image1, (width, height))
+        # image2 = cv2.resize(image2, (width, height))
+        # orb = cv2.ORB_create()
+        # kp1, des1 = orb.detectAndCompute(image1, None)
+        # kp2, des2 = orb.detectAndCompute(image2, None)
+        # bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        # matches = bf.match(des1, des2)
+        similarity_score = check_similarity(file=file,prototype_filenames=['prototype1.jpg','prototype2.jpg'])
         print(f"{similarity_score}")
-        if similarity_score > 0.5:
+        if similarity_score :
             result = "success"
             imageFile = imageFile.split(".")
             query = "UPDATE tablestatus SET  status = %s WHERE id = %s"
